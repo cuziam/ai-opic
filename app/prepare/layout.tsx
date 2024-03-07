@@ -1,13 +1,13 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import PageInfo from "@/components/PageInfo";
 import PrepareSteps from "@/components/PrepareSteps";
-import PrepareContext from "./context";
+
 export default function Prepare({ children }) {
   const [currentStep, setCurrentStep] = useState(1); //1~5
   const [showInfo, setShowInfo] = useState(false);
-  const router = useRouter();
+  const pathname = usePathname();
   const steps = useRef([
     "Background Survey",
     "Self Assessment",
@@ -15,11 +15,6 @@ export default function Prepare({ children }) {
     "Sample Question",
     "Begin Test",
   ]);
-
-  //handleCurrentStep function is passed to the context provider
-  const handleCurrentStep = (step: number) => {
-    setCurrentStep(step);
-  };
 
   //handleClose function is passed to the PageInfo component
   const handleClose = () => setShowInfo(false);
@@ -36,29 +31,31 @@ export default function Prepare({ children }) {
     onClose: handleClose,
   };
 
-  //route to the corresponding page based on the currentStep
+  //route to the corresponding page and set the current step
   useEffect(() => {
-    switch (currentStep) {
-      case 1:
-        router.push("/prepare/background-survey");
+    switch (pathname) {
+      case "/prepare/background-survey":
+        setCurrentStep(1);
         break;
-      case 2:
-        router.push("/prepare/self-assessment");
+      case "/prepare/self-assessment":
+        setCurrentStep(2);
         break;
-      case 3:
-        router.push("/prepare/setup");
+      case "/prepare/setup":
+        setCurrentStep(3);
         break;
-      case 4:
-        router.push("/prepare/sample-question");
+      case "/prepare/sample-question":
+        setCurrentStep(4);
         break;
-      case 5:
-        router.push("/prepare/begin-test");
+      case "/prepare/begin-test":
+        setCurrentStep(5);
         break;
+      default:
+        setCurrentStep(1);
     }
-  });
+  }, [pathname]);
 
   return (
-    <div className="bg-white p-8 w-full">
+    <div className="bg-white p-8 w-full flex flex-col">
       <div className="flex justify-end">
         <button
           className="w-6 h-6"
@@ -82,15 +79,13 @@ export default function Prepare({ children }) {
         </button>
       </div>
       {showInfo && <PageInfo {...pageinfo} />}
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-center items-center mb-4">
         <PrepareSteps steps={steps.current} currentStep={currentStep} />
         <div className="text-gray-400">
           <i className="fas fa-info-circle"></i>
         </div>
       </div>
-      <PrepareContext.Provider value={{ currentStep, handleCurrentStep }}>
-        {children}
-      </PrepareContext.Provider>
+      <div className="flex justify-center">{children}</div>
     </div>
   );
 }

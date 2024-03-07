@@ -1,21 +1,20 @@
 "use client";
 import React, { useState, useEffect, useContext } from "react";
-import PrepareContext from "../context";
+import { useRouter } from "next/navigation";
 import SurveyForm from "@/components/SurveyForm";
 import surveyData from "@/test-data/questions";
 
 //survey validation은 나중에 추가
 export default function Survey() {
   const [currentPageNumber, setCurrentPageNumber] = useState<number>(1);
-  const { handleCurrentStep } = useContext(PrepareContext);
-
+  const router = useRouter();
   const handleNextClick = (minusOrPlus: boolean) => {
     if (minusOrPlus === false) {
       setCurrentPageNumber((prev) => (prev === 1 ? 1 : prev - 1));
     } else {
       //if it's the last page, set current step to 2 and route to '/prepare/self-assessment'
       if (currentPageNumber === 4) {
-        handleCurrentStep(2);
+        router.push("/prepare/self-assessment");
       } else {
         setCurrentPageNumber((prev) => prev + 1);
       }
@@ -29,7 +28,7 @@ export default function Survey() {
 
   return (
     <>
-      <main>
+      <main className="p-4">
         <h1 className="text-2xl font-bold mb-4">Background Survey</h1>
         <div className="border-t border-gray-300 pt-4">
           <p className="mb-6 text-sm">

@@ -19,7 +19,7 @@ export default function Welcome() {
   };
   return (
     <div>
-      <div className="bg-white p-8 w-full">
+      <div className="bg-white p-4 w-full">
         <div className="flex justify-end">
           <button
             className="w-6 h-6"
