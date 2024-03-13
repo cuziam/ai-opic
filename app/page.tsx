@@ -1,11 +1,9 @@
 "use client";
 import Link from "next/link";
-import { getSurveys } from "../lib/actions";
+import { getSurveys, getRandomSurveys } from "../lib/actions";
 import { useState, useEffect } from "react";
 
 export default function Home() {
-  const [surveyGenerated, setSurveyGenerated] = useState(false);
-
   return (
     <div>
       <h1>Home</h1>
@@ -15,12 +13,17 @@ export default function Home() {
       <button
         onClick={() => {
           getSurveys();
-          setSurveyGenerated(true);
         }}
       >
         Generate Survey
       </button>
-      {surveyGenerated && <p>Survey Generated</p>}
+      <button
+        onClick={() => {
+          getRandomSurveys();
+        }}
+      >
+        getRandomSurveys
+      </button>
     </div>
   );
 }
