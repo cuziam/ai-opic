@@ -3,17 +3,33 @@ import React, { useState, useEffect, useContext } from "react";
 import { useRouter } from "next/navigation";
 import SurveyForm from "@/components/SurveyForm";
 import surveyData from "@/test-data/questions";
-
+import { getRandomSurveyData } from "@/lib/actions";
+// async function getQAndA() {
+//   "use server";
+//   const surveyData = await getRandomSurveyData();
+//   // 질문과 대답만 추출
+//   const qAndA = surveyData.map((survey) => {
+//     return {
+//       question: survey.question.question,
+//       options: survey.answer.map((answer) => {
+//         return answer.answer;
+//       }),
+//     };
+//   });
+//   return qAndA;
+// }
+// console.log(getQAndA());
 //survey validation은 나중에 추가
 export default function Survey() {
   const [currentPageNumber, setCurrentPageNumber] = useState<number>(1);
   const router = useRouter();
+
   const handleNextClick = (minusOrPlus: boolean) => {
     if (minusOrPlus === false) {
       setCurrentPageNumber((prev) => (prev === 1 ? 1 : prev - 1));
     } else {
       //if it's the last page, set current step to 2 and route to '/prepare/self-assessment'
-      if (currentPageNumber === 4) {
+      if (currentPageNumber === 3) {
         router.push("/prepare/self-assessment");
       } else {
         setCurrentPageNumber((prev) => prev + 1);
@@ -40,6 +56,7 @@ export default function Survey() {
             {" "}
             Part {currentPageNumber} of 4
           </h2>
+
           {surveyData[currentPageNumber - 1].map((page, index) => (
             <SurveyForm
               key={index}

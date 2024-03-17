@@ -8,8 +8,9 @@ import {
   SurveysAnswersRepository,
   SurveyRecordsRepository,
 } from "@/lib/mydb";
+import { Survey, SurveyAnswer, SurveyRecord } from "@/lib/db-types";
 import OpenAI from "openai";
-
+//testdb
 const db = new Database("./db/test.db", { verbose: console.log });
 const openai = new OpenAI({
   apiKey: `${process.env.OPENAI_API_KEY}`,
@@ -19,22 +20,10 @@ interface OpenAiSurveyRecord {
   question: string;
   answer: string[];
 }
-type OpenAiSurveyRecords = OpenAiSurveyRecord[];
-
-interface TestRecord {
-  id: number;
-  question: string;
-  answer: string;
-  feedback: string;
-}
-type TestRecords = TestRecord[];
-
-//server에서만 사용할 인터페이스
-interface ChatRecord {
+interface OpenAiChatRecord {
   role: "system" | "user" | "assistant";
   content: string;
 }
-type ChatRecords = ChatRecord[];
 
 //repository 사용
 const MyDb = {
@@ -46,8 +35,9 @@ const MyDb = {
 };
 
 //db사용
-export async function getSurveys() {
-  const initialChatRecord: ChatRecord = {
+
+export async function fetchSurveyData() {
+  const initialChatRecord: OpenAiChatRecord = {
     role: "system",
     content: `
     You are a questioner and assistant for the OPIC(Oral Proficiency Interview By Computer for English)test taker.
@@ -77,61 +67,128 @@ export async function getSurveys() {
     const response = completion.choices[0].message.content;
     const { survey } = JSON.parse(response as string);
     console.log("survey:", survey);
-
-    survey.forEach((record: OpenAiSurveyRecord) => {
-      //질문과 답을 db에 저장
-      //1. 질문을 저장
-      MyDb.surveys.create({ question: record.question });
-      //2. 질문의 id를 읽고 답들을 저장
-      const { id } = MyDb.surveys.readIdByQuestion(record.question) as {
-        id: number;
-      };
-      record.answer.forEach((answer: string) => {
-        MyDb.surveysAnswers.create({ answer, surveys_id: id });
-      });
-    });
-
-    //확인
-    console.log("surveys:", MyDb.surveys.readAll());
-    console.log("surveysAnswers:", MyDb.surveysAnswers.readAll());
+    return survey;
   } catch (e) {
     console.log(e);
+    throw e;
   }
-
-  //db에 저장
+}
+export async function storeSurveyData(surveyData: OpenAiSurveyRecord[]) {
+  try {
+    surveyData.forEach((survey) => {
+      MyDb.surveys.create({ question: survey.question });
+      const { id } = MyDb.surveys.readByQuestion(survey.question) as Survey;
+      survey.answer.forEach((answer) => {
+        MyDb.surveysAnswers.create({
+          answer: answer,
+          surveys_id: id as number,
+        });
+      });
+    });
+    console.log("Survey data is stored");
+  } catch (e) {
+    console.log(e);
+    throw e;
+  }
 }
 
-interface Survey {
-  id: number;
-  question: string;
-}
-
-interface SurveyAnswer {
-  id: number;
-  answer: string;
-  surveys_id: number;
-}
-//DB에서 랜덤하게 10개의 질문과 그에 대한 답변을 가져오기
-export async function getRandomSurveys() {
+//중복을 허용하지 않고 DB에서 랜덤하게 10개의 질문과 그에 대한 답변을 가져오기
+export async function getRandomSurveyData() {
   const surveys = MyDb.surveys.readAll();
-  const randomSurveys: OpenAiSurveyRecords = [];
+  const randomSurveys = [] as { question: Survey; answer: SurveyAnswer[] }[];
 
   for (let i = 0; i < 10; i++) {
+    //랜덤하게 질문을 읽기
     const randomIndex = Math.floor(Math.random() * surveys.length);
     const survey = surveys[randomIndex] as Survey;
     //질문에 대한 답변들을 DB에서 읽기
-    const surveyAnswers = MyDb.surveysAnswers.readBySurveyId(
-      survey.id
+    const surveyAnswers = MyDb.surveysAnswers.readAllBySurveyId(
+      survey.id as number
     ) as SurveyAnswer[];
-    const answer: string[] = [];
-    //답변들을 배열로 만들기
-    surveyAnswers.forEach((surveyAnswer) => {
-      answer.push(surveyAnswer.answer);
-    });
-    randomSurveys.push({ question: survey.question, answer });
+    //질문과 답변들을 배열에 넣기
+    randomSurveys.push({ question: survey, answer: surveyAnswers });
   }
-  console.log("randomSurveys:", randomSurveys);
+  console.log("randomSurveys:", JSON.stringify(randomSurveys, null, 2));
+  //랜덤하게 가져온 질문과 답변들을 반환
   return randomSurveys;
 }
 
-export async function saveSurveyRecords() {}
+export async function deleteAllSurveys() {
+  MyDb.surveys.deleteAll();
+  MyDb.surveysAnswers.deleteAll();
+  MyDb.surveyRecords.deleteAll();
+  console.log("All surveys and answers are deleted");
+}
+
+export async function createUserInfo() {
+  MyDb.userInfos.create({
+    id: "test",
+  });
+}
+export async function getUserInfo(id: string) {
+  return MyDb.userInfos.read(id);
+}
+
+export async function storeSurveyRecords(
+  userInfoId: string,
+  surveyRecords: { questionId: number; answerId: number }[]
+) {
+  surveyRecords.forEach((record) => {
+    MyDb.surveyRecords.create({
+      user_infos_id: userInfoId,
+      surveys_answers_surveys_id: record.questionId,
+      surveys_answers_id: record.answerId,
+    });
+  });
+}
+
+export async function getSurveyRecords(userInfoId: string) {
+  const surveyRecords = MyDb.surveyRecords.readAllByUserInfoId(userInfoId);
+  return surveyRecords.map((record) => {
+    const { question } = MyDb.surveys.read(record.surveys_answers_surveys_id);
+    const { answer } = MyDb.surveysAnswers.read(record.surveys_answers_id);
+    return { question, answer };
+  });
+}
+
+export async function fetchTestRecords(
+  surveyRecords: { question: string; answer: string }[]
+) {
+  const surveyRecordsString = JSON.stringify(surveyRecords, null, 2);
+  const initialChatRecord: OpenAiChatRecord = {
+    role: "system",
+    content: `
+    You are a questioner and assistant for the OPIC(Oral Proficiency Interview By Computer for English)test taker.
+    You have to respond in JSON format.
+
+    You will generate questions for the OPIC test taker.
+    the questions are written in English and consists of 12 questions.
+    the questions are based on the survey which I give you.
+    if test taker's level is from 4 to 6, you have to generate more 3 free questions on topics that are not in the survey. 
+
+    the json format of the questions is as follows:
+    questions: [](type is array of string)
+
+    here is the survey:
+    ${surveyRecordsString}
+    `,
+  };
+
+  try {
+    console.log("getTestRecords...");
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [initialChatRecord],
+      response_format: {
+        type: "json_object",
+      },
+    });
+    const response = completion.choices[0].message.content;
+    const { questions } = JSON.parse(response as string);
+    console.log("questions:", questions);
+    return questions;
+  } catch (e) {
+    console.log(e);
+    throw e;
+  }
+}

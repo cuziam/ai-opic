@@ -1,36 +1,11 @@
 import Database from "better-sqlite3";
-// 인터페이스 정의
-interface Survey {
-  id?: number;
-  question: string;
-}
-
-interface UserInfo {
-  id: string;
-}
-
-interface TestRecord {
-  id?: number;
-  question: string;
-  answer: string;
-  feedback: string;
-  user_infos_id: string;
-}
-
-interface SurveyAnswer {
-  id?: number;
-  answer: string;
-  surveys_id: number;
-}
-
-interface SurveyRecord {
-  id: number;
-  user_infos_id: string;
-  surveys_id: number;
-  surveys_answers_id: number;
-  surveys_answers_surveys_id: number;
-}
-
+import {
+  Survey,
+  UserInfo,
+  TestRecord,
+  SurveyAnswer,
+  SurveyRecord,
+} from "@/lib/db-types";
 class SurveysRepository {
   private db: Database.Database;
   constructor(db: Database.Database) {
@@ -44,17 +19,19 @@ class SurveysRepository {
   }
 
   read(id: number) {
-    return this.db.prepare("SELECT * FROM surveys WHERE id = ?").get(id);
+    return this.db
+      .prepare("SELECT * FROM surveys WHERE id = ?")
+      .get(id) as Survey;
   }
 
-  readIdByQuestion(question: string) {
+  readByQuestion(question: string) {
     return this.db
-      .prepare("SELECT id FROM surveys WHERE question = ?")
-      .get(question);
+      .prepare("SELECT * FROM surveys WHERE question = ?")
+      .get(question) as Survey;
   }
 
   readAll() {
-    return this.db.prepare("SELECT * FROM surveys").all();
+    return this.db.prepare("SELECT * FROM surveys").all() as Survey[];
   }
 
   update(survey: Survey) {
@@ -65,6 +42,10 @@ class SurveysRepository {
 
   delete(id: number) {
     return this.db.prepare("DELETE FROM surveys WHERE id = ?").run(id);
+  }
+
+  deleteAll() {
+    return this.db.prepare("DELETE FROM surveys").run();
   }
 }
 
@@ -81,7 +62,9 @@ class UserInfosRepository {
   }
 
   read(id: string) {
-    return this.db.prepare("SELECT * FROM user_infos WHERE id = ?").get(id);
+    return this.db
+      .prepare("SELECT * FROM user_infos WHERE id = ?")
+      .get(id) as UserInfo;
   }
 
   readAll() {
@@ -113,11 +96,13 @@ class TestRecordsRepository {
   }
 
   read(id: number) {
-    return this.db.prepare("SELECT * FROM test_records WHERE id = ?").get(id);
+    return this.db
+      .prepare("SELECT * FROM test_records WHERE id = ?")
+      .get(id) as TestRecord;
   }
 
   readAll() {
-    return this.db.prepare("SELECT * FROM test_records").all();
+    return this.db.prepare("SELECT * FROM test_records").all() as TestRecord[];
   }
 
   update(testRecord: TestRecord) {
@@ -151,20 +136,22 @@ class SurveysAnswersRepository {
       .run(surveyAnswer.answer, surveyAnswer.surveys_id);
   }
 
-  read(id: number, surveys_id: number) {
+  read(id: number) {
     return this.db
-      .prepare("SELECT * FROM surveys_answers WHERE id = ? AND surveys_id = ?")
-      .get(id, surveys_id);
+      .prepare("SELECT * FROM surveys_answers WHERE id = ?")
+      .get(id) as SurveyAnswer;
   }
 
-  readBySurveyId(surveys_id: number) {
+  readAllBySurveyId(surveys_id: number) {
     return this.db
       .prepare("SELECT * FROM surveys_answers WHERE surveys_id = ?")
-      .all(surveys_id);
+      .all(surveys_id) as SurveyAnswer[];
   }
 
   readAll() {
-    return this.db.prepare("SELECT * FROM surveys_answers").all();
+    return this.db
+      .prepare("SELECT * FROM surveys_answers")
+      .all() as SurveyAnswer[];
   }
 
   update(surveyAnswer: SurveyAnswer) {
@@ -180,6 +167,10 @@ class SurveysAnswersRepository {
       .prepare("DELETE FROM surveys_answers WHERE id = ? AND surveys_id = ?")
       .run(id, surveys_id);
   }
+
+  deleteAll() {
+    return this.db.prepare("DELETE FROM surveys_answers").run();
+  }
 }
 
 class SurveyRecordsRepository {
@@ -191,11 +182,10 @@ class SurveyRecordsRepository {
   create(surveyRecord: SurveyRecord) {
     return this.db
       .prepare(
-        "INSERT INTO survey_records (user_infos_id, surveys_id, surveys_answers_id, surveys_answers_surveys_id) VALUES (?, ?, ?, ?)"
+        "INSERT INTO survey_records (user_infos_id, surveys_answers_id, surveys_answers_surveys_id) VALUES (?, ?, ?)"
       )
       .run(
         surveyRecord.user_infos_id,
-        surveyRecord.surveys_id,
         surveyRecord.surveys_answers_id,
         surveyRecord.surveys_answers_surveys_id
       );
@@ -206,20 +196,27 @@ class SurveyRecordsRepository {
       .prepare(
         "SELECT * FROM survey_records WHERE id = ? AND user_infos_id = ?"
       )
-      .get(id, user_infos_id);
+      .get(id, user_infos_id) as SurveyRecord;
   }
 
   readAll() {
-    return this.db.prepare("SELECT * FROM survey_records").all();
+    return this.db
+      .prepare("SELECT * FROM survey_records")
+      .all() as SurveyRecord[];
+  }
+
+  readAllByUserInfoId(user_infos_id: string) {
+    return this.db
+      .prepare("SELECT * FROM survey_records WHERE user_infos_id = ?")
+      .all(user_infos_id) as SurveyRecord[];
   }
 
   update(surveyRecord: SurveyRecord) {
     return this.db
       .prepare(
-        "UPDATE survey_records SET surveys_id = ?, surveys_answers_id = ?, surveys_answers_surveys_id = ? WHERE id = ? AND user_infos_id = ?"
+        "UPDATE survey_records SET surveys_answers_id = ?, surveys_answers_surveys_id = ? WHERE id = ? AND user_infos_id = ?"
       )
       .run(
-        surveyRecord.surveys_id,
         surveyRecord.surveys_answers_id,
         surveyRecord.surveys_answers_surveys_id,
         surveyRecord.id,
@@ -231,6 +228,10 @@ class SurveyRecordsRepository {
     return this.db
       .prepare("DELETE FROM survey_records WHERE id = ? AND user_infos_id = ?")
       .run(id, user_infos_id);
+  }
+
+  deleteAll() {
+    return this.db.prepare("DELETE FROM survey_records").run();
   }
 }
 
