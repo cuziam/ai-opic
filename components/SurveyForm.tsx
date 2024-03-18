@@ -1,10 +1,9 @@
-export default function SurveyForm({
-  question,
-  options,
-}: {
+interface SurveyData {
   question: string;
   options: string[];
-}) {
+}
+
+export default function SurveyForm({ question, options }: SurveyData) {
   return (
     <div>
       <p className="mb-6 font-bold">{question}</p>

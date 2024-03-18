@@ -54,9 +54,11 @@ export default function Home() {
           // dummy survey records
           const userId = "test";
           const dummyQandA = [
-            { questionId: 2, answerId: 12 },
-            { questionId: 2, answerId: 14 },
-            { questionId: 4, answerId: 26 },
+            { question: "영어 학습 목적은 무엇입니까?", option: "학교/학업" },
+            {
+              question: "영어 학습 목적은 무엇입니까?",
+              option: "취미",
+            },
           ];
           await storeSurveyRecords(userId, dummyQandA);
         }}

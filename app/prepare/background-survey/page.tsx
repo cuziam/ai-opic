@@ -1,35 +1,36 @@
 "use client";
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import SurveyForm from "@/components/SurveyForm";
-import surveyData from "@/test-data/questions";
-import { getRandomSurveyData } from "@/lib/actions";
-// async function getQAndA() {
-//   "use server";
-//   const surveyData = await getRandomSurveyData();
-//   // 질문과 대답만 추출
-//   const qAndA = surveyData.map((survey) => {
-//     return {
-//       question: survey.question.question,
-//       options: survey.answer.map((answer) => {
-//         return answer.answer;
-//       }),
-//     };
-//   });
-//   return qAndA;
-// }
-// console.log(getQAndA());
+
+interface SurveyData {
+  question: string;
+  options: string[];
+}
+
 //survey validation은 나중에 추가
-export default function Survey() {
+export default function Survey({ surveyData }: { surveyData: SurveyData[] }) {
   const [currentPageNumber, setCurrentPageNumber] = useState<number>(1);
   const router = useRouter();
+  const maxPageNumber = 3;
+  const getSurveyDataOfPages = useCallback(
+    (surveyData: SurveyData[], maxPageNumber: number) => {
+      const pages = [];
+      //maxPageNumber만큼 균등하게 나눠서 페이지를 만든다
+      for (let i = 0; i < maxPageNumber; i++) {
+        pages.push(surveyData.slice(i * 4, (i + 1) * 4));
+      }
+      return pages;
+    },
+    []
+  );
 
-  const handleNextClick = (minusOrPlus: boolean) => {
+  const handleNextClick = (minusOrPlus: boolean, maxPageNumber: number) => {
     if (minusOrPlus === false) {
       setCurrentPageNumber((prev) => (prev === 1 ? 1 : prev - 1));
     } else {
       //if it's the last page, set current step to 2 and route to '/prepare/self-assessment'
-      if (currentPageNumber === 3) {
+      if (currentPageNumber === maxPageNumber) {
         router.push("/prepare/self-assessment");
       } else {
         setCurrentPageNumber((prev) => prev + 1);
@@ -54,26 +55,30 @@ export default function Survey() {
 
           <h2 className="text-xl font-bold mb-4">
             {" "}
-            Part {currentPageNumber} of 4
+            Part {currentPageNumber} of {maxPageNumber}
           </h2>
-
-          {surveyData[currentPageNumber - 1].map((page, index) => (
-            <SurveyForm
-              key={index}
-              question={page.question}
-              options={page.options}
-            />
-          ))}
+          {
+            //get the survey data of the current page
+            getSurveyDataOfPages(surveyData, maxPageNumber)[
+              currentPageNumber - 1
+            ].map((survey, index) => (
+              <SurveyForm
+                key={index}
+                question={survey.question}
+                options={survey.options}
+              />
+            ))
+          }
           <div className="flex justify-between mt-8">
             <button
               className="bg-orange-500 hover:bg-orange-700 text-white px-6 py-2 rounded"
-              onClick={() => handleNextClick(false)}
+              onClick={() => handleNextClick(false, maxPageNumber)}
             >
               Back
             </button>
             <button
               className="bg-orange-500 hover:bg-orange-700 text-white px-6 py-2 rounded"
-              onClick={() => handleNextClick(true)}
+              onClick={() => handleNextClick(true, maxPageNumber)}
             >
               Next
             </button>

@@ -94,22 +94,37 @@ export async function storeSurveyData(surveyData: OpenAiSurveyRecord[]) {
 
 //중복을 허용하지 않고 DB에서 랜덤하게 10개의 질문과 그에 대한 답변을 가져오기
 export async function getRandomSurveyData() {
-  const surveys = MyDb.surveys.readAll();
-  const randomSurveys = [] as { question: Survey; answer: SurveyAnswer[] }[];
+  const surveysLength = MyDb.surveys.length() as number;
+  const randomSurveys = [] as { question: string; options: string[] }[];
 
-  for (let i = 0; i < 10; i++) {
-    //랜덤하게 질문을 읽기
-    const randomIndex = Math.floor(Math.random() * surveys.length);
-    const survey = surveys[randomIndex] as Survey;
-    //질문에 대한 답변들을 DB에서 읽기
-    const surveyAnswers = MyDb.surveysAnswers.readAllBySurveyId(
-      survey.id as number
-    ) as SurveyAnswer[];
-    //질문과 답변들을 배열에 넣기
-    randomSurveys.push({ question: survey, answer: surveyAnswers });
+  //질문 수가 10개가 되지 않는다면 나머지만 가져온다.
+  if (surveysLength < 10) {
+    for (let surveyId = 1; surveyId <= surveysLength; surveyId++) {
+      const { question, id } = MyDb.surveys.read(surveyId) as Survey;
+      const options = MyDb.surveysAnswers
+        .readAllBySurveyId(id)
+        .map((answer) => {
+          return answer.answer;
+        });
+      randomSurveys.push({ question, options });
+    }
+    return randomSurveys;
   }
-  console.log("randomSurveys:", JSON.stringify(randomSurveys, null, 2));
-  //랜덤하게 가져온 질문과 답변들을 반환
+
+  //default: 중복을 허용하지 않고 랜덤하게 10개의 질문을 가져온다.
+  const randomNumbers = new Set<number>();
+  while (randomNumbers.size < 10) {
+    randomNumbers.add(Math.floor(Math.random() * surveysLength) + 1);
+  }
+  randomNumbers.forEach((surveyId) => {
+    const { question } = MyDb.surveys.read(surveyId) as Survey;
+    const options = MyDb.surveysAnswers
+      .readAllBySurveyId(surveyId)
+      .map((answer) => {
+        return answer.answer;
+      });
+    randomSurveys.push({ question, options });
+  });
   return randomSurveys;
 }
 
@@ -131,15 +146,20 @@ export async function getUserInfo(id: string) {
 
 export async function storeSurveyRecords(
   userInfoId: string,
-  surveyRecords: { questionId: number; answerId: number }[]
+  surveyRecords: { question: string; option: string }[]
 ) {
   surveyRecords.forEach((record) => {
+    const { id } = MyDb.surveys.readByQuestion(record.question) as Survey;
+    const { id: answerId } = MyDb.surveysAnswers.readByAnswer(
+      record.option
+    ) as SurveyAnswer;
     MyDb.surveyRecords.create({
       user_infos_id: userInfoId,
-      surveys_answers_surveys_id: record.questionId,
-      surveys_answers_id: record.answerId,
+      surveys_answers_id: answerId as number,
+      surveys_answers_surveys_id: id as number,
     });
   });
+  console.log("Survey records are stored");
 }
 
 export async function getSurveyRecords(userInfoId: string) {

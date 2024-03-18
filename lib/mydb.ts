@@ -47,80 +47,9 @@ class SurveysRepository {
   deleteAll() {
     return this.db.prepare("DELETE FROM surveys").run();
   }
-}
 
-class UserInfosRepository {
-  private db: Database.Database;
-  constructor(db: Database.Database) {
-    this.db = db;
-  }
-
-  create(userInfo: UserInfo) {
-    return this.db
-      .prepare("INSERT INTO user_infos (id) VALUES (?)")
-      .run(userInfo.id);
-  }
-
-  read(id: string) {
-    return this.db
-      .prepare("SELECT * FROM user_infos WHERE id = ?")
-      .get(id) as UserInfo;
-  }
-
-  readAll() {
-    return this.db.prepare("SELECT * FROM user_infos").all();
-  }
-
-  delete(id: string) {
-    return this.db.prepare("DELETE FROM user_infos WHERE id = ?").run(id);
-  }
-}
-
-class TestRecordsRepository {
-  private db: Database.Database;
-  constructor(db: Database.Database) {
-    this.db = db;
-  }
-
-  create(testRecord: TestRecord) {
-    return this.db
-      .prepare(
-        "INSERT INTO test_records (question, answer, feedback, user_infos_id) VALUES (?, ?, ?, ?)"
-      )
-      .run(
-        testRecord.question,
-        testRecord.answer,
-        testRecord.feedback,
-        testRecord.user_infos_id
-      );
-  }
-
-  read(id: number) {
-    return this.db
-      .prepare("SELECT * FROM test_records WHERE id = ?")
-      .get(id) as TestRecord;
-  }
-
-  readAll() {
-    return this.db.prepare("SELECT * FROM test_records").all() as TestRecord[];
-  }
-
-  update(testRecord: TestRecord) {
-    return this.db
-      .prepare(
-        "UPDATE test_records SET question = ?, answer = ?, feedback = ?, user_infos_id = ? WHERE id = ?"
-      )
-      .run(
-        testRecord.question,
-        testRecord.answer,
-        testRecord.feedback,
-        testRecord.user_infos_id,
-        testRecord.id
-      );
-  }
-
-  delete(id: number) {
-    return this.db.prepare("DELETE FROM test_records WHERE id = ?").run(id);
+  length() {
+    return this.db.prepare("SELECT COUNT(*) FROM surveys").pluck().get();
   }
 }
 
@@ -147,6 +76,11 @@ class SurveysAnswersRepository {
       .prepare("SELECT * FROM surveys_answers WHERE surveys_id = ?")
       .all(surveys_id) as SurveyAnswer[];
   }
+  readByAnswer(answer: string) {
+    return this.db
+      .prepare("SELECT * FROM surveys_answers WHERE answer = ?")
+      .get(answer) as SurveyAnswer;
+  }
 
   readAll() {
     return this.db
@@ -170,6 +104,33 @@ class SurveysAnswersRepository {
 
   deleteAll() {
     return this.db.prepare("DELETE FROM surveys_answers").run();
+  }
+}
+
+class UserInfosRepository {
+  private db: Database.Database;
+  constructor(db: Database.Database) {
+    this.db = db;
+  }
+
+  create(userInfo: UserInfo) {
+    return this.db
+      .prepare("INSERT INTO user_infos (id) VALUES (?)")
+      .run(userInfo.id);
+  }
+
+  read(id: string) {
+    return this.db
+      .prepare("SELECT * FROM user_infos WHERE id = ?")
+      .get(id) as UserInfo;
+  }
+
+  readAll() {
+    return this.db.prepare("SELECT * FROM user_infos").all();
+  }
+
+  delete(id: string) {
+    return this.db.prepare("DELETE FROM user_infos WHERE id = ?").run(id);
   }
 }
 
@@ -232,6 +193,54 @@ class SurveyRecordsRepository {
 
   deleteAll() {
     return this.db.prepare("DELETE FROM survey_records").run();
+  }
+}
+
+class TestRecordsRepository {
+  private db: Database.Database;
+  constructor(db: Database.Database) {
+    this.db = db;
+  }
+
+  create(testRecord: TestRecord) {
+    return this.db
+      .prepare(
+        "INSERT INTO test_records (question, answer, feedback, user_infos_id) VALUES (?, ?, ?, ?)"
+      )
+      .run(
+        testRecord.question,
+        testRecord.answer,
+        testRecord.feedback,
+        testRecord.user_infos_id
+      );
+  }
+
+  read(id: number) {
+    return this.db
+      .prepare("SELECT * FROM test_records WHERE id = ?")
+      .get(id) as TestRecord;
+  }
+
+  readAll() {
+    return this.db.prepare("SELECT * FROM test_records").all() as TestRecord[];
+  }
+
+  update(testRecord: TestRecord) {
+    return this.db
+      .prepare(
+        "UPDATE test_records SET question = ?, answer = ?, feedback = ?, user_infos_id = ? WHERE id = ?"
+      )
+      .run(
+        testRecord.question,
+        testRecord.answer,
+        testRecord.feedback,
+        testRecord.user_infos_id,
+        testRecord.id
+      );
+  }
+
+  delete(id: number) {
+    return this.db.prepare("DELETE FROM test_records WHERE id = ?").run(id);
   }
 }
 
