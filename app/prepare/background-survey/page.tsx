@@ -1,5 +1,11 @@
 "use client";
-import React, { useState, useEffect, useContext, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useContext,
+  useCallback,
+  useRef,
+} from "react";
 import { useRouter } from "next/navigation";
 import SurveyForm from "@/components/SurveyForm";
 
@@ -7,41 +13,47 @@ interface SurveyData {
   question: string;
   options: string[];
 }
+interface SurveyRecord {
+  question: string;
+  option: string;
+}
 
 //survey validation은 나중에 추가
 export default function Survey({ surveyData }: { surveyData: SurveyData[] }) {
-  const [currentPageNumber, setCurrentPageNumber] = useState<number>(1);
+  const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
-  const maxPageNumber = 3;
-  const getSurveyDataOfPages = useCallback(
-    (surveyData: SurveyData[], maxPageNumber: number) => {
-      const pages = [];
-      //maxPageNumber만큼 균등하게 나눠서 페이지를 만든다
-      for (let i = 0; i < maxPageNumber; i++) {
-        pages.push(surveyData.slice(i * 4, (i + 1) * 4));
-      }
-      return pages;
-    },
-    []
-  );
 
-  const handleNextClick = (minusOrPlus: boolean, maxPageNumber: number) => {
-    if (minusOrPlus === false) {
-      setCurrentPageNumber((prev) => (prev === 1 ? 1 : prev - 1));
+  const handleNextClick = async (isNext: boolean) => {
+    if (isNext) {
+      await submitSurveyRecords();
+      router.push("/prepare/self-assessment");
     } else {
-      //if it's the last page, set current step to 2 and route to '/prepare/self-assessment'
-      if (currentPageNumber === maxPageNumber) {
-        router.push("/prepare/self-assessment");
-      } else {
-        setCurrentPageNumber((prev) => prev + 1);
-      }
+      router.push("/policy-agreement");
     }
   };
 
-  //after page number change, scroll to top smoothly
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [currentPageNumber]);
+  const submitSurveyRecords = async () => {
+    const surveyRecords = [] as SurveyRecord[];
+    const form = formRef.current;
+    if (form) {
+      const formData = new FormData(form);
+      for (const [question, option] of formData.entries()) {
+        surveyRecords.push({ question, option } as SurveyRecord);
+      }
+    }
+
+    try {
+      await fetch("/prepare/background-survey/api", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: "test", surveyRecords }),
+      });
+    } catch (e) {
+      console.log(e);
+    }
+  };
 
   return (
     <>
@@ -52,33 +64,29 @@ export default function Survey({ surveyData }: { surveyData: SurveyData[] }) {
             질문을 읽고 정확한 답변을 선택기 바랍니다. 설문에 대한 응답을
             기준으로 개인별 맞춤형 정보를 제공합니다.
           </p>
+          <form ref={formRef}>
+            {
+              //get the survey data of the current page
+              surveyData.map((survey, index) => (
+                <SurveyForm
+                  key={index}
+                  question={survey.question}
+                  options={survey.options}
+                />
+              ))
+            }
+          </form>
 
-          <h2 className="text-xl font-bold mb-4">
-            {" "}
-            Part {currentPageNumber} of {maxPageNumber}
-          </h2>
-          {
-            //get the survey data of the current page
-            getSurveyDataOfPages(surveyData, maxPageNumber)[
-              currentPageNumber - 1
-            ].map((survey, index) => (
-              <SurveyForm
-                key={index}
-                question={survey.question}
-                options={survey.options}
-              />
-            ))
-          }
           <div className="flex justify-between mt-8">
             <button
               className="bg-orange-500 hover:bg-orange-700 text-white px-6 py-2 rounded"
-              onClick={() => handleNextClick(false, maxPageNumber)}
+              onClick={() => handleNextClick(false)}
             >
               Back
             </button>
             <button
               className="bg-orange-500 hover:bg-orange-700 text-white px-6 py-2 rounded"
-              onClick={() => handleNextClick(true, maxPageNumber)}
+              onClick={() => handleNextClick(true)}
             >
               Next
             </button>

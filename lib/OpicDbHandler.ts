@@ -36,6 +36,7 @@ const MyDb = {
 
 //db사용
 
+//설문 데이터 생성
 export async function fetchSurveyData() {
   const initialChatRecord: OpenAiChatRecord = {
     role: "system",
@@ -73,6 +74,8 @@ export async function fetchSurveyData() {
     throw e;
   }
 }
+
+//설문데이터 저장
 export async function storeSurveyData(surveyData: OpenAiSurveyRecord[]) {
   try {
     surveyData.forEach((survey) => {
@@ -92,7 +95,7 @@ export async function storeSurveyData(surveyData: OpenAiSurveyRecord[]) {
   }
 }
 
-//중복을 허용하지 않고 DB에서 랜덤하게 10개의 질문과 그에 대한 답변을 가져오기
+//설문 데이터를 랜덤하게 가져오기
 export async function getRandomSurveyData() {
   const surveysLength = MyDb.surveys.length() as number;
   const randomSurveys = [] as { question: string; options: string[] }[];
@@ -128,6 +131,7 @@ export async function getRandomSurveyData() {
   return randomSurveys;
 }
 
+//모든 설문 데이터 삭제
 export async function deleteAllSurveys() {
   MyDb.surveys.deleteAll();
   MyDb.surveysAnswers.deleteAll();
@@ -135,15 +139,20 @@ export async function deleteAllSurveys() {
   console.log("All surveys and answers are deleted");
 }
 
+//일단 유저 정보 생성과 인증은 생략하고 기능테스트를 위해 id를 test로 고정
+//유저 정보 생성
 export async function createUserInfo() {
   MyDb.userInfos.create({
     id: "test",
   });
 }
+
+//유저 정보 가져오기
 export async function getUserInfo(id: string) {
   return MyDb.userInfos.read(id);
 }
 
+//설문 기록 저장
 export async function storeSurveyRecords(
   userInfoId: string,
   surveyRecords: { question: string; option: string }[]
@@ -162,6 +171,7 @@ export async function storeSurveyRecords(
   console.log("Survey records are stored");
 }
 
+//설문 기록 가져오기
 export async function getSurveyRecords(userInfoId: string) {
   const surveyRecords = MyDb.surveyRecords.readAllByUserInfoId(userInfoId);
   return surveyRecords.map((record) => {
@@ -171,6 +181,7 @@ export async function getSurveyRecords(userInfoId: string) {
   });
 }
 
+//테스트 문항 생성
 export async function fetchTestRecords(
   surveyRecords: { question: string; answer: string }[]
 ) {

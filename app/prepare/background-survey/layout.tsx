@@ -1,4 +1,4 @@
-import { getRandomSurveyData } from "@/lib/actions";
+import { getRandomSurveyData } from "@/lib/OpicDbHandler";
 import Survey from "./page";
 interface Props {
   children: React.ReactNode;

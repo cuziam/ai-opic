@@ -9,7 +9,7 @@ import {
   storeSurveyRecords,
   getSurveyRecords,
   fetchTestRecords,
-} from "../lib/actions";
+} from "../lib/OpicDbHandler";
 import { useState, useEffect } from "react";
 
 export default function Home() {
