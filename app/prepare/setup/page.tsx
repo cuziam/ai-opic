@@ -1,7 +1,18 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 export default function Setup() {
   const router = useRouter();
+  const [interviewerState, setInterviewerState] = useState<
+    "pending" | "speaking"
+  >("pending");
+  const [recorderState, setRecorderState] = useState<"pending" | "recording">(
+    "pending"
+  );
+  const [userVoiceVolume, setUserVoiceVolume] = useState<number>(0);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+
   const handleNextClick = (minusOrPlus: boolean) => {
     if (minusOrPlus === false) {
       router.push("/prepare/self-assessment");
@@ -9,6 +20,88 @@ export default function Setup() {
       router.push("/prepare/sample-question");
     }
   };
+
+  const handleInterviewerState = () => {
+    if (interviewerState === "pending") {
+      setInterviewerState("speaking");
+      const audio = new Audio("/sample-voice.aac");
+      audio.play();
+      audio.onended = () => {
+        setInterviewerState("pending");
+      };
+    }
+    return;
+  };
+
+  //녹음 관련 sideeffect
+  useEffect(() => {
+    // 녹음 상태가 pending이면 아무것도 하지 않는다.
+    if (recorderState === "pending") return;
+
+    let audioContext;
+    let workletNode;
+
+    const initializeAudio = async () => {
+      //mediaDevices API 사용 가능한지 확인
+      if (!navigator.mediaDevices) {
+        console.error("MediaDevices API is not supported");
+        return;
+      }
+
+      //audioContext 생성 및 볼륨 분석
+      try {
+        console.log("Initializing audio");
+        //마이크 권한 요청, 오디오 스트림 생성
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        audioContext = new AudioContext(); //오디오 컨텍스트 생성
+        await audioContext.audioWorklet.addModule("/volume-processor.js"); //audioContext에 Worklet모듈 추가
+
+        //audioWorkletNode 생성 & 연결
+        workletNode = new AudioWorkletNode(audioContext, "volume-processor"); //Worklet 노드 생성
+        const source = audioContext.createMediaStreamSource(stream); //오디오 소스 생성
+        source.connect(workletNode); //소스를 workletNode에 연결
+        workletNode.connect(audioContext.destination); // workletNode를 오디오 컨텍스트의 출력에 연결합니다.
+
+        // Worklet에서 메시지를 받으면 볼륨 상태를 업데이트합니다.
+        workletNode.port.onmessage = (event) => {
+          setUserVoiceVolume(event.data.volume);
+        };
+
+        // // 스트림 녹음 로직
+        // const mediaRecorder = new MediaRecorder(stream);
+        // const chunks = [];
+        // mediaRecorder.ondataavailable = (e) => {
+        //   chunks.push(e.data);
+        // };
+        // mediaRecorder.onstop = () => {
+        //   const blob = new Blob(chunks, { type: "audio/wav" });
+        //   const url = URL.createObjectURL(blob);
+        //   const audio = new Audio(url);
+        //   console.log("url:", url);
+        //   audio.play();
+        // };
+      } catch (err) {
+        console.error("An error occurred in initializeAudio:", err);
+        // 더 상세한 오류 로깅
+        console.error("Error details:", {
+          message: err.message,
+          name: err.name,
+        });
+      }
+    };
+    (async () => {
+      await initializeAudio();
+    })();
+
+    //리소스 정리
+    return () => {
+      console.log("Cleaning up audio resources");
+      workletNode?.disconnect();
+      audioContext?.close();
+    };
+  }, [recorderState]);
 
   return (
     <main>
@@ -18,14 +111,38 @@ export default function Setup() {
         <div className="flex">
           <div className="VoiceControl flex">
             <div className="ViewerAndPlay flex flex-col">
-              <img
-                src="https://placehold.co/200x200"
-                alt="Placeholder image of a woman with brown hair, wearing a black suit, representing Ava"
-                className="Viewer inline-block w-16 h-16"
+              <Image
+                src="/images/interviewer.webp"
+                width={200}
+                height={200}
+                alt="interviewer"
+                priority
+                style={{
+                  width: "200px",
+                  height: "200px",
+                  objectFit: "cover", // 이 속성은 이미지가 컨테이너 안에 적절히 맞도록 조정합니다.
+                }}
               />
-              <button className="Play w-6 h-4 play">&#9654;</button>
+
+              <button
+                className={
+                  interviewerState === "pending"
+                    ? "Play w-6 h-4"
+                    : "Play w-6 h-4 animate-pulse"
+                }
+                onClick={handleInterviewerState} //autoplay 정책 때문에 sideeffect대신 onClick이벤트핸들러로 직접 연결
+              >
+                {"\u25B6"}
+              </button>
             </div>
-            <div className="ViewerVolume h-16 w-1 bg-black"></div>
+            <div>
+              <div className="UserVolumeBg w-4 h-full rounded-md bg-slate-500">
+                <div
+                  className={`UserVolumeBar w-4 bg-blue-500 rounded-md`}
+                  style={{ height: `${userVoiceVolume}%` }}
+                ></div>
+              </div>
+            </div>
           </div>
           <div className="VoiceRecorder font-bold text-sm">
             <ol className="Instruction">
@@ -42,23 +159,32 @@ export default function Setup() {
               </li>
             </ol>
             <div className="RecorderButtons">
-              <button className="StartRecording p-1 bg-green-600 text-white">
+              <button
+                className="StartRecording p-1 bg-green-600 text-white"
+                onClick={() => {
+                  setRecorderState("recording");
+                }}
+              >
                 Start Recording
               </button>
-              <button className="StopRecording p-1 bg-red-600 text-white">
+              <button
+                className="StopRecording p-1 bg-red-600 text-white"
+                onClick={() => {
+                  setRecorderState("pending");
+                }}
+              >
                 Stop Recording
               </button>
               <button className="PlayRecording p-1 bg-blue-600 text-white">
                 Play Recording
               </button>
             </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value="50"
-              className="UserVolume w-16 h-1 bg-black"
-            />
+            <div className="UserRecorderBg h-4 w-full bg-slate-400">
+              <div
+                className="UserRecorder h-4 bg-blue-500"
+                style={{ height: `${userVoiceVolume}%` }}
+              ></div>
+            </div>
           </div>
         </div>
       </div>

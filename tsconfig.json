@@ -27,7 +27,9 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "test-data/userinfo.js"
+    "test-data/userinfo.js",
+    "lib/volume-processor.ts",
+    "lib/fetch-sample-audio.js"
   ],
   "exclude": ["node_modules"]
 }

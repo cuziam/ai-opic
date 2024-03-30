@@ -13,13 +13,18 @@ interface SurveyData {
   question: string;
   options: string[];
 }
+
 interface SurveyRecord {
   question: string;
   option: string;
 }
 
 //survey validation은 나중에 추가
-export default function Survey({ surveyData }: { surveyData: SurveyData[] }) {
+export default function Survey({
+  surveyData,
+}: {
+  surveyData: { question: string; options: string[] }[];
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
 
