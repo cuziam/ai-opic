@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 export default function Setup() {
@@ -7,11 +7,15 @@ export default function Setup() {
   const [interviewerState, setInterviewerState] = useState<
     "pending" | "speaking"
   >("pending");
-  const [recorderState, setRecorderState] = useState<"pending" | "recording">(
-    "pending"
-  );
+  const [recorderState, setRecorderState] = useState<
+    "pending" | "recording" | "playing"
+  >("pending");
   const [userVoiceVolume, setUserVoiceVolume] = useState<number>(0);
-  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+  const mediaStreamRef = useRef<MediaStream>(null);
+  const mediaRecorderRef = useRef<MediaRecorder>(null);
+  const audioFileRef = useRef<HTMLAudioElement>(null);
+  const audioContextRef = useRef<AudioContext>(null);
+  const audioWorkletNodeRef = useRef<AudioWorkletNode>(null);
 
   const handleNextClick = (minusOrPlus: boolean) => {
     if (minusOrPlus === false) {
@@ -33,73 +37,98 @@ export default function Setup() {
     return;
   };
 
-  //녹음 관련 sideeffect
+  //오디오 설정 초기화 sideeffect
   useEffect(() => {
-    // 녹음 상태가 pending이면 아무것도 하지 않는다.
-    if (recorderState === "pending") return;
-
-    let audioContext;
-    let workletNode;
-
-    const initializeAudio = async () => {
-      //mediaDevices API 사용 가능한지 확인
-      if (!navigator.mediaDevices) {
-        console.error("MediaDevices API is not supported");
-        return;
-      }
-
-      //audioContext 생성 및 볼륨 분석
-      try {
-        console.log("Initializing audio");
-        //마이크 권한 요청, 오디오 스트림 생성
+    //mediaDevices API 사용 가능한지 확인
+    if (!navigator.mediaDevices) {
+      console.error("MediaDevices API is not supported");
+      return;
+    }
+    //audio 권한 획득 & mediaStreamRef초기화
+    try {
+      const initializeAudio = async () => {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
-        audioContext = new AudioContext(); //오디오 컨텍스트 생성
-        await audioContext.audioWorklet.addModule("/volume-processor.js"); //audioContext에 Worklet모듈 추가
+        mediaStreamRef.current = stream;
+        console.log("authorization: ok, audio");
 
-        //audioWorkletNode 생성 & 연결
-        workletNode = new AudioWorkletNode(audioContext, "volume-processor"); //Worklet 노드 생성
-        const source = audioContext.createMediaStreamSource(stream); //오디오 소스 생성
-        source.connect(workletNode); //소스를 workletNode에 연결
-        workletNode.connect(audioContext.destination); // workletNode를 오디오 컨텍스트의 출력에 연결합니다.
+        //mediaRecorderRef초기화
+        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
 
+        //audioContextRef초기화
+        audioContextRef.current = new AudioContext();
+        await audioContextRef.current.audioWorklet.addModule(
+          "/volume-processor.js"
+        );
+        audioContextRef.current.suspend(); //오디오 컨텍스트 처음엔 일시정지
+
+        //audioWorkletNode 초기화
+        audioWorkletNodeRef.current = new AudioWorkletNode(
+          audioContextRef.current,
+          "volume-processor"
+        );
+        //audioWorkletNode의 입력과 출력 설정
+        const source = audioContextRef.current.createMediaStreamSource(
+          mediaStreamRef.current
+        ); //오디오 소스 생성
+        source.connect(audioWorkletNodeRef.current); //소스를 workletNode에 연결
+        audioWorkletNodeRef.current.connect(
+          audioContextRef.current.destination
+        ); // workletNode를 오디오 컨텍스트의 출력에 연결합니다.
         // Worklet에서 메시지를 받으면 볼륨 상태를 업데이트합니다.
-        workletNode.port.onmessage = (event) => {
+        audioWorkletNodeRef.current.port.onmessage = (event) => {
           setUserVoiceVolume(event.data.volume);
         };
+      };
+      (async () => {
+        await initializeAudio();
+      })();
+    } catch (err) {
+      console.log(err);
+      throw new Error("Failed to initialize audio");
+    }
+  }, []);
 
-        // // 스트림 녹음 로직
-        // const mediaRecorder = new MediaRecorder(stream);
-        // const chunks = [];
-        // mediaRecorder.ondataavailable = (e) => {
-        //   chunks.push(e.data);
-        // };
-        // mediaRecorder.onstop = () => {
-        //   const blob = new Blob(chunks, { type: "audio/wav" });
-        //   const url = URL.createObjectURL(blob);
-        //   const audio = new Audio(url);
-        //   console.log("url:", url);
-        //   audio.play();
-        // };
-      } catch (err) {
-        console.error("An error occurred in initializeAudio:", err);
-        // 더 상세한 오류 로깅
-        console.error("Error details:", {
-          message: err.message,
-          name: err.name,
-        });
-      }
+  //녹음 관련 sideeffect
+  useEffect(() => {
+    // 녹음기 상태가 pending이거나, playing일 시
+    console.log(recorderState);
+    if (recorderState === "pending") {
+      mediaRecorderRef.current?.stop();
+      audioContextRef.current?.suspend();
+      return;
+    }
+
+    if (recorderState === "playing") {
+      //재생완료 후 초기화
+      audioFileRef.current?.play();
+      audioFileRef.current!.onended = () => {
+        setRecorderState("pending");
+      };
+      return;
+    }
+    //초기화 sideeffect에서 mediaStreamRef, mediaRecorderRef, audioContextRef, audioWorkletNodeRef가 초기화되었으므로 null체크 불필요하긴 하다.
+    //1. 오디오 녹음
+    const chunks = [] as Blob[];
+    mediaRecorderRef.current.ondataavailable = (event) => {
+      chunks.push(event.data);
     };
-    (async () => {
-      await initializeAudio();
-    })();
+    mediaRecorderRef.current.onstop = () => {
+      const audioBlob = new Blob(chunks, { type: "audio/aac" });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audioFileRef.current = audio;
+    };
+    mediaRecorderRef.current.start(500);
 
-    //리소스 정리
+    //2. 오디오 분석
+    audioContextRef.current?.resume(); //오디오 컨텍스트 재개
+
     return () => {
-      console.log("Cleaning up audio resources");
-      workletNode?.disconnect();
-      audioContext?.close();
+      console.log("cleanup: recording stop, audioContext suspend");
+      mediaRecorderRef.current?.stop();
+      audioContextRef.current?.suspend();
     };
   }, [recorderState]);
 
@@ -130,7 +159,7 @@ export default function Setup() {
                     ? "Play w-6 h-4"
                     : "Play w-6 h-4 animate-pulse"
                 }
-                onClick={handleInterviewerState} //autoplay 정책 때문에 sideeffect대신 onClick이벤트핸들러로 직접 연결
+                onClick={handleInterviewerState} //autoplay 정책 때문에 sideeffect사용대신 onClick이벤트핸들러로 직접 연결
               >
                 {"\u25B6"}
               </button>
@@ -175,14 +204,19 @@ export default function Setup() {
               >
                 Stop Recording
               </button>
-              <button className="PlayRecording p-1 bg-blue-600 text-white">
+              <button
+                className="PlayRecording p-1 bg-blue-600 text-white"
+                onClick={() => {
+                  setRecorderState("playing");
+                }}
+              >
                 Play Recording
               </button>
             </div>
-            <div className="UserRecorderBg h-4 w-full bg-slate-400">
+            <div className="UserRecorderBg h-4 w-full p-4 bg-slate-400 flex items-center rounded-md">
               <div
-                className="UserRecorder h-4 bg-blue-500"
-                style={{ height: `${userVoiceVolume}%` }}
+                className="UserRecorder h-2 bg-blue-500 rounded-md"
+                style={{ width: `100%` }}
               ></div>
             </div>
           </div>
