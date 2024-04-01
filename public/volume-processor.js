@@ -19,7 +19,10 @@ class VolumeProcessor extends AudioWorkletProcessor {
 
     //볼륨을 0~100 사이의 값으로 변환
     volume = Math.round(volume * 100);
+    // this.port.onmessage = (e) => {
+    //   console.log(e.data);
     this.port.postMessage({ volume });
+    // };
     return true;
   }
 }

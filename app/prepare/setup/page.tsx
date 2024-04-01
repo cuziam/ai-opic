@@ -11,6 +11,8 @@ export default function Setup() {
     "pending" | "recording" | "playing"
   >("pending");
   const [userVoiceVolume, setUserVoiceVolume] = useState<number>(0);
+  const [playbackProgress, setPlaybackProgress] = useState<number>(0);
+
   const mediaStreamRef = useRef<MediaStream>(null);
   const mediaRecorderRef = useRef<MediaRecorder>(null);
   const audioFileRef = useRef<HTMLAudioElement>(null);
@@ -102,12 +104,22 @@ export default function Setup() {
 
     if (recorderState === "playing") {
       //재생완료 후 초기화
-      audioFileRef.current?.play();
+      mediaRecorderRef.current?.stop();
+      audioContextRef.current?.suspend();
+      audioFileRef.current?.play(); //재생 진행도 설정
+      audioFileRef.current!.ontimeupdate = () => {
+        setPlaybackProgress(
+          (audioFileRef.current!.currentTime / audioFileRef.current!.duration) *
+            100
+        );
+      };
       audioFileRef.current!.onended = () => {
         setRecorderState("pending");
       };
+
       return;
     }
+    //recorderState가 recording일 때
     //초기화 sideeffect에서 mediaStreamRef, mediaRecorderRef, audioContextRef, audioWorkletNodeRef가 초기화되었으므로 null체크 불필요하긴 하다.
     //1. 오디오 녹음
     const chunks = [] as Blob[];
@@ -125,6 +137,13 @@ export default function Setup() {
     //2. 오디오 분석
     audioContextRef.current?.resume(); //오디오 컨텍스트 재개
 
+    //+3. 시간제한 후 녹음 중지
+    setTimeout(() => {
+      console.log("recording timeout");
+      mediaRecorderRef.current.stop();
+      audioContextRef.current.suspend();
+    }, 10000);
+
     return () => {
       console.log("cleanup: recording stop, audioContext suspend");
       mediaRecorderRef.current?.stop();
@@ -137,9 +156,9 @@ export default function Setup() {
       <div className="Contents flex flex-col justify-center">
         <h1 className="text-2xl font-bold mb-4">Pre-Test Setup</h1>
         <div className="border-t border-gray-300 pt-4"></div>
-        <div className="flex">
-          <div className="VoiceControl flex">
-            <div className="ViewerAndPlay flex flex-col">
+        <div className="Setup flex gap-8">
+          <div className="VoiceControl flex gap-4">
+            <div className="ViewerAndPlay flex flex-col items-center gap-4">
               <Image
                 src="/images/interviewer.webp"
                 width={200}
@@ -156,24 +175,39 @@ export default function Setup() {
               <button
                 className={
                   interviewerState === "pending"
-                    ? "Play w-6 h-4"
-                    : "Play w-6 h-4 animate-pulse"
+                    ? "Play w-12 h-8 bg-orange-500 rounded text-gray-200"
+                    : "Play w-12 h-8 animate-pulse bg-orange-500 rounded text-gray-200"
                 }
                 onClick={handleInterviewerState} //autoplay 정책 때문에 sideeffect사용대신 onClick이벤트핸들러로 직접 연결
               >
                 {"\u25B6"}
               </button>
             </div>
-            <div>
-              <div className="UserVolumeBg w-4 h-full rounded-md bg-slate-500">
+            <div className="Volume flex flex-col items-center gap-2">
+              <div className="UserVolumeBg w-2 h-full rounded-md border-2 flex flex-col-reverse content-center items-center">
                 <div
-                  className={`UserVolumeBar w-4 bg-blue-500 rounded-md`}
+                  className={`UserVolumeBar w-2 bg-blue-500 rounded-md`}
                   style={{ height: `${userVoiceVolume}%` }}
                 ></div>
               </div>
+              <div className="Microphone">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="fill-slate-800 w-4 h-4"
+                  version="1.1"
+                  viewBox="0 0 512 512"
+                >
+                  <g>
+                    <g>
+                      <path d="m439.5,236c0-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,70-64,126.9-142.7,126.9-78.7,0-142.7-56.9-142.7-126.9 0-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,86.2 71.5,157.4 163.1,166.7v57.5h-23.6c-11.3,0-20.4,9.1-20.4,20.4 0,11.3 9.1,20.4 20.4,20.4h88c11.3,0 20.4-9.1 20.4-20.4 0-11.3-9.1-20.4-20.4-20.4h-23.6v-57.5c91.6-9.3 163.1-80.5 163.1-166.7z" />
+                      <path d="m256,323.5c51,0 92.3-41.3 92.3-92.3v-127.9c0-51-41.3-92.3-92.3-92.3s-92.3,41.3-92.3,92.3v127.9c0,51 41.3,92.3 92.3,92.3zm-52.3-220.2c0-28.8 23.5-52.3 52.3-52.3s52.3,23.5 52.3,52.3v127.9c0,28.8-23.5,52.3-52.3,52.3s-52.3-23.5-52.3-52.3v-127.9z" />
+                    </g>
+                  </g>
+                </svg>
+              </div>
             </div>
           </div>
-          <div className="VoiceRecorder font-bold text-sm">
+          <div className="Record font-bold text-sm flex flex-col gap-8">
             <ol className="Instruction">
               <li>
                 1. Play 아이콘(&#9654; )을 눌러 질문을 듣고 재생 음량을
@@ -187,37 +221,42 @@ export default function Setup() {
                 3. Play Recording을 눌러 음성이 정상 녹음되었는지 확인하십시오.
               </li>
             </ol>
-            <div className="RecorderButtons">
-              <button
-                className="StartRecording p-1 bg-green-600 text-white"
-                onClick={() => {
-                  setRecorderState("recording");
-                }}
-              >
-                Start Recording
-              </button>
-              <button
-                className="StopRecording p-1 bg-red-600 text-white"
-                onClick={() => {
-                  setRecorderState("pending");
-                }}
-              >
-                Stop Recording
-              </button>
-              <button
-                className="PlayRecording p-1 bg-blue-600 text-white"
-                onClick={() => {
-                  setRecorderState("playing");
-                }}
-              >
-                Play Recording
-              </button>
-            </div>
-            <div className="UserRecorderBg h-4 w-full p-4 bg-slate-400 flex items-center rounded-md">
-              <div
-                className="UserRecorder h-2 bg-blue-500 rounded-md"
-                style={{ width: `100%` }}
-              ></div>
+            <div className="Recorder flex flex-col gap-4">
+              <div className="RecorderButtons flex gap-2">
+                {/* 녹음기 상태에 따라 버튼 활성화 */}
+
+                <button
+                  className="StartRecording p-1 bg-orange-500 text-white rounded active:bg-orange-700"
+                  onClick={() => {
+                    setRecorderState("recording");
+                  }}
+                >
+                  Start Recording
+                </button>
+
+                <button
+                  className="StopRecording p-1 bg-orange-500 text-white rounded active:bg-orange-700"
+                  onClick={() => {
+                    setRecorderState("pending");
+                  }}
+                >
+                  Stop Recording
+                </button>
+                <button
+                  className="PlayRecording p-1 bg-orange-500 text-white rounded active:bg-orange-700"
+                  onClick={() => {
+                    setRecorderState("playing");
+                  }}
+                >
+                  Play Recording
+                </button>
+              </div>
+              <div className="UserRecorderBg h-4 w-full p-4 bg-slate-400 flex items-center rounded-md">
+                <div
+                  className="UserRecorder h-2 bg-black rounded-md transition-all duration-500 ease-linear"
+                  style={{ width: `${playbackProgress}%` }}
+                ></div>
+              </div>
             </div>
           </div>
         </div>
