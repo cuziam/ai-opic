@@ -15,7 +15,9 @@ export default function VoicePlayer({
     "pending" | "playing" | "waiting" | "done"
   >("pending");
   const [isPlayedBefore, setIsPlayedBefore] = useState<boolean>(false); //이전에 재생되었는지 여부
+  const [progression, setProgression] = useState<number>(0); //재생 진행도
   const playButtonRef = useRef<HTMLButtonElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(new Audio(filePath));
 
   const updateClassName = useCallback(
     (action: "add" | "remove", classname: string) => {
@@ -29,6 +31,24 @@ export default function VoicePlayer({
     },
     []
   );
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    const handleTimeUpdate = () => {
+      const progress = (audio.currentTime / audio.duration) * 100;
+      setProgression(progress);
+    };
+
+    if (audio) {
+      audio.addEventListener("timeupdate", handleTimeUpdate);
+    }
+
+    return () => {
+      if (audio) {
+        audio.removeEventListener("timeupdate", handleTimeUpdate);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     console.log("voicePlayerState:", voicePlayerState);
@@ -43,12 +63,10 @@ export default function VoicePlayer({
         playButtonRef.current!.disabled = false;
         return;
       case "playing":
-        console.log("filePath:", filePath);
-        const audio = new Audio(filePath);
-        audio.play();
+        audioRef.current.play();
         updateClassName("add", "animate-pulse");
         playButtonRef.current!.disabled = true;
-        audio.onended = () => {
+        audioRef.current.onended = () => {
           setVoicePlayerState("waiting");
         };
         break;
@@ -77,6 +95,7 @@ export default function VoicePlayer({
       clearTimeout(timeout);
     };
   }, [voicePlayerState, filePath]);
+
   return (
     <div className="VoicePlayer flex flex-col w-full">
       <div className="flex w-full">
@@ -91,7 +110,12 @@ export default function VoicePlayer({
         </button>
 
         <div className="PlayProgression flex-grow h-8 bg-slate-200 flex justify-center items-center">
-          <div className="PlayProgressionBorder w-11/12 h-1 border-2 border-gray-300"></div>
+          <div className="PlayProgressionBorder w-11/12 h-2 border-2 border-gray-300">
+            <div
+              className="PlayProgressionBar h-full bg-blue-500 transition-all ease-linear"
+              style={{ width: `${progression}%` }}
+            ></div>
+          </div>
         </div>
       </div>
     </div>

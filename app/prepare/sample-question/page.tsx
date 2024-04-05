@@ -61,7 +61,7 @@ export default function SampleQuestion() {
         //3초 후 done으로 변경
         timer = setTimeout(() => {
           setUserState("done");
-        }, 1000 * 120); //실제로는 2분
+        }, 10000); //실제로는 2분
         break;
       case "done":
         //deactivate voice recognition

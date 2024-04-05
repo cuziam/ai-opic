@@ -20,7 +20,7 @@ export default function VolumeBar({
 
   useEffect(() => {
     if (!navigator.mediaDevices || isSettingDone) {
-      console.error(
+      console.log(
         "MediaDevices API is not supported or setting is already done."
       );
       return;
