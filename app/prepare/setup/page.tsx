@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { clear } from "console";
 export default function Setup() {
   const router = useRouter();
   const [interviewerState, setInterviewerState] = useState<
@@ -18,6 +19,7 @@ export default function Setup() {
   const audioFileRef = useRef<HTMLAudioElement>(null);
   const audioContextRef = useRef<AudioContext>(null);
   const audioWorkletNodeRef = useRef<AudioWorkletNode>(null);
+  const intervalIdRef = useRef(null); // useRef를 사용하여 intervalId 저장
 
   const handleNextClick = (minusOrPlus: boolean) => {
     if (minusOrPlus === false) {
@@ -79,8 +81,10 @@ export default function Setup() {
           audioContextRef.current.destination
         ); // workletNode를 오디오 컨텍스트의 출력에 연결합니다.
         // Worklet에서 메시지를 받으면 볼륨 상태를 업데이트합니다.
-        audioWorkletNodeRef.current.port.onmessage = (event) => {
-          setUserVoiceVolume(event.data.volume);
+        audioWorkletNodeRef.current.port.onmessage = (e) => {
+          if (userVoiceVolume !== e.data.volume) {
+            setUserVoiceVolume(e.data.volume);
+          }
         };
       };
       (async () => {
@@ -95,10 +99,13 @@ export default function Setup() {
   //녹음 관련 sideeffect
   useEffect(() => {
     // 녹음기 상태가 pending이거나, playing일 시
+    let intervalId;
     console.log(recorderState);
+
     if (recorderState === "pending") {
       mediaRecorderRef.current?.stop();
       audioContextRef.current?.suspend();
+      clearInterval(intervalId);
       return;
     }
 
@@ -106,16 +113,19 @@ export default function Setup() {
       //재생완료 후 초기화
       mediaRecorderRef.current?.stop();
       audioContextRef.current?.suspend();
-      audioFileRef.current?.play(); //재생 진행도 설정
-      audioFileRef.current!.ontimeupdate = () => {
-        setPlaybackProgress(
-          (audioFileRef.current!.currentTime / audioFileRef.current!.duration) *
-            100
-        );
-      };
-      audioFileRef.current!.onended = () => {
-        setRecorderState("pending");
-      };
+      if (audioFileRef.current) {
+        audioFileRef.current?.play(); //재생 진행도 설정
+        audioFileRef.current.ontimeupdate = () => {
+          setPlaybackProgress(
+            (audioFileRef.current!.currentTime /
+              audioFileRef.current!.duration) *
+              100
+          );
+        };
+        audioFileRef.current!.onended = () => {
+          setRecorderState("pending");
+        };
+      }
 
       return;
     }
@@ -136,18 +146,27 @@ export default function Setup() {
 
     //2. 오디오 분석
     audioContextRef.current?.resume(); //오디오 컨텍스트 재개
+    //how...? 200ms마다 workletNode에 메시지 전송하되, pending일 때 삭제
+    intervalIdRef.current = setInterval(() => {
+      audioWorkletNodeRef.current?.port.postMessage("getVolume");
+    }, 200);
 
     //+3. 시간제한 후 녹음 중지
-    setTimeout(() => {
+    const timeid = setTimeout(() => {
       console.log("recording timeout");
-      mediaRecorderRef.current.stop();
-      audioContextRef.current.suspend();
+      setRecorderState("pending");
     }, 10000);
 
     return () => {
-      console.log("cleanup: recording stop, audioContext suspend");
+      console.log("cleanup: recording");
+      // 위에서 실행한 작업들을 정리합니다.
       mediaRecorderRef.current?.stop();
       audioContextRef.current?.suspend();
+      clearTimeout(timeid);
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null; // interval 정리 후 null로 설정
+      }
     };
   }, [recorderState]);
 
@@ -186,7 +205,7 @@ export default function Setup() {
             <div className="Volume flex flex-col items-center gap-2">
               <div className="UserVolumeBg w-2 h-full rounded-md border-2 flex flex-col-reverse content-center items-center">
                 <div
-                  className={`UserVolumeBar w-2 bg-blue-500 rounded-md`}
+                  className={`UserVolumeBar w-2 bg-blue-500 rounded-md transition-all ease-linear`}
                   style={{ height: `${userVoiceVolume}%` }}
                 ></div>
               </div>
@@ -253,7 +272,7 @@ export default function Setup() {
               </div>
               <div className="UserRecorderBg h-4 w-full p-4 bg-slate-400 flex items-center rounded-md">
                 <div
-                  className="UserRecorder h-2 bg-black rounded-md transition-all duration-500 ease-linear"
+                  className="UserRecorder h-2 bg-black rounded-md transition-all ease-linear"
                   style={{ width: `${playbackProgress}%` }}
                 ></div>
               </div>
