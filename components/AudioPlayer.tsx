@@ -1,17 +1,17 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-interface VoicePlayerProps {
+interface audioPlayerProps {
   filePath: string;
   updateState: React.Dispatch<
     React.SetStateAction<"pending" | "playing" | "waiting" | "done">
   >;
 }
 
-export default function VoicePlayer({
+export default function AudioPlayer({
   filePath,
   updateState,
-}: VoicePlayerProps) {
-  const [voicePlayerState, setVoicePlayerState] = useState<
+}: audioPlayerProps) {
+  const [audioPlayerState, setAudioPlayerState] = useState<
     "pending" | "playing" | "waiting" | "done"
   >("pending");
   const [isPlayedBefore, setIsPlayedBefore] = useState<boolean>(false); //이전에 재생되었는지 여부
@@ -35,7 +35,7 @@ export default function VoicePlayer({
     const audio = audioRef.current;
 
     const handleTimeUpdate = () => {
-      const progress = (audio.currentTime / audio.duration) * 100;
+      const progress = (audio!.currentTime / audio!.duration) * 100;
       setProgression(progress);
     };
 
@@ -51,39 +51,39 @@ export default function VoicePlayer({
   }, []);
 
   useEffect(() => {
-    console.log("voicePlayerState:", voicePlayerState);
-    updateState(voicePlayerState);
-  }, [voicePlayerState, updateState]);
+    console.log("audioPlayerState:", audioPlayerState);
+    updateState(audioPlayerState);
+  }, [audioPlayerState, updateState]);
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
     if (!audioRef.current) {
       audioRef.current = new Audio(filePath);
     }
-    switch (voicePlayerState) {
+    switch (audioPlayerState) {
       case "pending":
         updateClassName("remove", "animate-pulse");
         playButtonRef.current!.disabled = false;
         return;
       case "playing":
-        audioRef.current.play();
+        audioRef.current?.play();
         updateClassName("add", "animate-pulse");
         playButtonRef.current!.disabled = true;
-        audioRef.current.onended = () => {
-          setVoicePlayerState("waiting");
+        audioRef.current!.onended = () => {
+          setAudioPlayerState("waiting");
         };
         break;
       case "waiting":
         updateClassName("remove", "animate-pulse");
         if (isPlayedBefore === true) {
-          setVoicePlayerState("done");
+          setAudioPlayerState("done");
           break;
         }
         setIsPlayedBefore(true);
         //5초 대기 후 done으로 전환
         playButtonRef.current!.disabled = false;
         timeout = setTimeout(() => {
-          setVoicePlayerState("done");
+          setAudioPlayerState("done");
         }, 5000);
         break;
       case "done":
@@ -97,19 +97,19 @@ export default function VoicePlayer({
     return () => {
       clearTimeout(timeout);
     };
-  }, [voicePlayerState, filePath]);
+  }, [audioPlayerState, filePath]);
 
   return (
-    <div className="VoicePlayer flex flex-col w-full">
+    <div className="AudioPlayer flex flex-col w-full">
       <div className="flex w-full">
         <button
           ref={playButtonRef}
           className={"PlayButton w-8 h-8 bg-orange-500 text-gray-200"}
           onClick={() => {
-            setVoicePlayerState("playing");
+            setAudioPlayerState("playing");
           }} //autoplay 정책 때문에 sideeffect사용대신 onClick이벤트핸들러로 직접 연결
         >
-          {voicePlayerState === "waiting" ? "\u21bb" : "\u25B6"}
+          {audioPlayerState === "waiting" ? "\u21bb" : "\u25B6"}
         </button>
 
         <div className="PlayProgression flex-grow h-8 bg-slate-200 flex justify-center items-center">

@@ -2,14 +2,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import VoicePlayer from "@/components/VoicePlayer";
+import AudioPlayer from "@/components/AudioPlayer";
 import VolumeBar from "@/components/VolumeBar";
-type voicePlayerState = "pending" | "playing" | "waiting" | "done";
+type audioPlayerState = "pending" | "playing" | "waiting" | "done";
 type userState = "pending" | "speaking" | "done";
 export default function SampleQuestion() {
   //setup과 유사하지만 진행바가 없음
-  const [voicePlayerState, setVoicePlayerState] =
-    useState<voicePlayerState>("pending");
+  const [audioPlayerState, setAudioPlayerState] =
+    useState<audioPlayerState>("pending");
   const [userState, setUserState] = useState<userState>("pending");
   const [userVoiceVolume, setUserVoiceVolume] = useState<number>(0); //0~100
   const [VolumeBarPower, setVolumeBarPower] = useState<boolean>(false);
@@ -25,8 +25,8 @@ export default function SampleQuestion() {
     },
     [router]
   );
-  const handleVoicePlayerState = useCallback((state: voicePlayerState) => {
-    setVoicePlayerState(state);
+  const handleAudioPlayerState = useCallback((state: audioPlayerState) => {
+    setAudioPlayerState(state);
     return;
   }, []);
 
@@ -35,17 +35,17 @@ export default function SampleQuestion() {
     return;
   }, []);
 
-  //voicePlayerState에 따라 userState를 변경
+  //audioPlayerState에 따라 userState를 변경
   useEffect(() => {
-    if (voicePlayerState === "pending" || voicePlayerState === "playing") {
+    if (audioPlayerState === "pending" || audioPlayerState === "playing") {
       setUserState("pending");
       return;
     }
-    if (voicePlayerState === "waiting") {
+    if (audioPlayerState === "waiting") {
       setUserState("speaking");
       return;
     }
-  }, [voicePlayerState]);
+  }, [audioPlayerState]);
 
   //userState에 따라 동작
   useEffect(() => {
@@ -98,9 +98,9 @@ export default function SampleQuestion() {
                   objectFit: "cover", // 이 속성은 이미지가 컨테이너 안에 적절히 맞도록 조정합니다.
                 }}
               />
-              <VoicePlayer
+              <AudioPlayer
                 filePath="/sample-voice.aac"
-                updateState={handleVoicePlayerState} //상태 업데이트 함수
+                updateState={handleAudioPlayerState} //상태 업데이트 함수
               />
             </div>
             <VolumeBar

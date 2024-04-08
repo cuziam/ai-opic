@@ -31,8 +31,10 @@ export default function VolumeBar({
       mediaStreamRef.current = stream;
       console.log("authorization: ok, audio");
 
-      // Initialize audio context and worklet node
+      // Initialize audio recorder
+      const chunks = [];
       mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
+
       audioContextRef.current = new AudioContext();
       await audioContextRef.current.audioWorklet.addModule(
         "/volume-processor.js"
@@ -60,6 +62,7 @@ export default function VolumeBar({
     };
   }, [isSettingDone]);
 
+  // Update user voice volume when power is on
   useEffect(() => {
     if (!isSettingDone) return;
 
