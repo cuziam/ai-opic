@@ -31,13 +31,13 @@ export default function VolumeBar({
       mediaStreamRef.current = stream;
       console.log("authorization: ok, audio");
 
+      // Initialize audio context and worklet node
       mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
       audioContextRef.current = new AudioContext();
       await audioContextRef.current.audioWorklet.addModule(
         "/volume-processor.js"
       );
       await audioContextRef.current.suspend();
-
       audioWorkletNodeRef.current = new AudioWorkletNode(
         audioContextRef.current,
         "volume-processor"
@@ -52,7 +52,6 @@ export default function VolumeBar({
       .then(() => setIsSettingDone(true))
       .catch((err) => {
         console.error("Failed to initialize audio", err);
-        throw new Error("Failed to initialize audio");
       });
 
     // Cleanup function to prevent memory leaks

@@ -47,6 +47,7 @@ export default function SampleQuestion() {
     }
   }, [voicePlayerState]);
 
+  //userState에 따라 동작
   useEffect(() => {
     console.log("userState:", userState);
     let timer: NodeJS.Timeout;

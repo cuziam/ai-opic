@@ -17,7 +17,7 @@ export default function VoicePlayer({
   const [isPlayedBefore, setIsPlayedBefore] = useState<boolean>(false); //이전에 재생되었는지 여부
   const [progression, setProgression] = useState<number>(0); //재생 진행도
   const playButtonRef = useRef<HTMLButtonElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(new Audio(filePath));
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const updateClassName = useCallback(
     (action: "add" | "remove", classname: string) => {
@@ -57,6 +57,9 @@ export default function VoicePlayer({
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
+    if (!audioRef.current) {
+      audioRef.current = new Audio(filePath);
+    }
     switch (voicePlayerState) {
       case "pending":
         updateClassName("remove", "animate-pulse");
